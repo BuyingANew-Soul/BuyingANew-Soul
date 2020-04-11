@@ -32,7 +32,7 @@ def tie_checker(board, mark, turn_counter):
 
 
 def game_play():
-
+    position_filled = []
     while True:
         board = [".", ".", ".", ".", ".", ".", ".", ".", "."]
         print_board(board)
@@ -57,10 +57,19 @@ def game_play():
                 break
 
             # putting in a while loop for handling the unexpected errors...
+
             while True:
                 try:
                     i = int(input("{}'s turn- ".format(mark)))  # taking value form player
                     position = i - 1  # as list index starts from 0
+
+                    # this logic forbids to place mark on already marked position..
+                    if position not in position_filled:
+                        position_filled.append(position)
+                    else:
+                        print("You can't place your mark here. It's already taken..")
+                        break
+
                     board[position] = mark
                 except ValueError:
                     print("Please put a number from your number-pad to specify a position!")
