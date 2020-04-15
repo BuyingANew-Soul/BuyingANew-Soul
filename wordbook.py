@@ -38,6 +38,12 @@ class Word:
 
 
 def add_new_word(connector, cursor):
+    """
+    :param connector: db connector
+    :param cursor: db connector's cursor for executing queries
+    :return: takes values from user and saves them to the db
+    """
+
     while True:
         os.system('cls')
         word = input("The word is : ").lower()
@@ -49,18 +55,24 @@ def add_new_word(connector, cursor):
 
         new_word = Word(word, meaning, exm1, exm2, syn, ant)
         print("You have just added the following word to the database: ")
-        new_word.show_current_word()
+        new_word.show_current_word()   # this method is in the word Class. not showing the word from db
 
-        adding_word_in_db(connector, cursor, new_word)
+        adding_word_in_db(connector, cursor, new_word)   # here I'm adding the word to the db using this function
 
         more = input("Do you want to add more word?")
-        if more == "n":
+        if more == "n" or more == "no":
             break
-        elif more == "y":
+        elif more == "y" or more == "yes":
             continue
 
 
 def adding_word_in_db(connector, cursor, word):
+    """
+    :param connector: db connector
+    :param cursor: db cursor for running queries
+    :param word: word from add_new_word function, where user inputted the word related data
+    :return: adds the words to db
+    """
 
     with connector:
         cursor.execute('''CREATE TABLE IF NOT EXISTS words
@@ -84,12 +96,29 @@ def adding_word_in_db(connector, cursor, word):
                         word.ant))
 
 
-def show_word(tup_word):
-    print("word : {}\nmeaning : {}\nexample : \n{}\n{}\nsynonym : {}\nantonym : {}"
-          .format(tup_word[1], tup_word[2], tup_word[3], tup_word[4], tup_word[5], tup_word[6]))
+def show_word(con, cur, word_id):
+    """
+    :param con: db connector
+    :param cur: db cursor for running queries
+    :param word_id: taking word id to show the word
+    :return: printing out the word with related info
+    """
+
+    with con:
+        cur.execute("SELECT * FROM words WHERE id= ?", (word_id,))
+        list_row = cur.fetchall()   # fetchall() returns a list of tuples
+        tup = list_row[0]           # as the list is containing one tuple only, taking the tuple out of the list
+    print("\nword : {}\nmeaning : {}\n\nexample : \n{}\n{}\n\nsynonym : {}\nantonym : {}\n"
+          .format(tup[1], tup[2], tup[3], tup[4], tup[5], tup[6]))      # leaving the 0'th index as it contains id
 
 
 def delete_word(connector, cursor):
+    """
+    :param connector: db connector
+    :param cursor: db cursor for running queries
+    :return: deletes a word from db
+    """
+
     del_word = input("Type in the word you want to delete: ").lower()
     with connector:
         cursor.execute("SELECT word FROM words WHERE word = ?", (del_word,))
@@ -101,27 +130,108 @@ def delete_word(connector, cursor):
 
 
 def find_word(connector, cursor):
+    """
+    :param connector: db connector
+    :param cursor: db cursor for running queries
+    :return: finds a word in the database
+    """
+
     while True:
         find = input("Type in the word fo find: ").lower()
         with connector:
             cursor.execute("SELECT word FROM words WHERE word = ?", (find,))
-            if cursor.fetchone() is None:
-                print("The word \'{}\' is not in the wordbook!".format(find))
+            if cursor.fetchone() is None:       # fetchone() return a None if there is no value
+                print("\nThe word \'{}\' is not in the wordbook!".format(find))
             else:
-                cursor.execute("SELECT * FROM words WHERE word = ?", (find,))
-                list_rows = cursor.fetchall()
-                tup = list_rows[0]
-                show_word(tup)
-        more = input("Need to find more?")
-        if more == "y":
+                cursor.execute("SELECT id FROM words WHERE word = ?", (find,))
+                id_word = cursor.fetchone()
+                show_word(connector, cursor, id_word[0])
+
+        more = input("Need to find more?").lower()
+        if more == "y" or more == "yes":
             continue
-        elif more == "n":
+        elif more == "n" or more == "no":
             os.system('cls')
             break
 
 
-def practise():
-    pass
+def word_count(con, cur):
+    """
+    :param con: db connector
+    :param cur: db cursor
+    :return: returns total number of words in the db
+    """
+
+    with con:
+        cur.execute("SELECT COUNT(*) FROM words")
+        count = cur.fetchone()
+        return count[0]
+
+
+def practise(connector, cursor):
+    """
+    :param connector: db connector
+    :param cursor: db cursor for running queries
+    :return: gives the user words randomly to check if he/she can remember, else shows hints, else shows everything
+             about the word
+    """
+
+    print("\n***Type 'exit' whenever you want to exit practicing***\n")
+    while True:
+        os.system('cls')
+
+        with connector:
+            c.execute("SELECT id FROM words")           # selecting all id's from the db
+            all_id = c.fetchall()                       # this returns a list of tuples containing ids
+            random_id = random.choice(all_id)           # randomly selecting one tuple from the list
+            word_id = random_id[0]                      # unpacking the tuple
+            cursor.execute("SELECT word FROM words WHERE id= ?", (word_id,))
+            word = cursor.fetchone()
+            print("Try this one: ")
+            print(10 * " ", end="")
+            print(word[0])
+            print("\n")
+            print("\nPress 1 : I got this one, move on..")
+            print("Press 2 : Not sure, give me an example")
+            print("Press 3 : Show me the meaning and uses\n")
+
+            while True:
+                choice = input()
+                if choice == "1":
+                    break
+                elif choice == "2":
+                    print(10 * " ", end="")
+                    cursor.execute("SELECT exm1 FROM words WHERE id= ?", (word_id,))
+                    hint = cursor.fetchone()
+                    print(hint[0])
+
+                    now = input("\nHave you got this now? yes = y or no = n \n")
+                    if now == "y" or now == "yes":
+                        break
+                    elif now == "n" or now == "no":
+                        show_word(connector, cursor, word_id)
+                        break
+                    else:
+                        continue
+                elif choice == "3":
+                    print(10 * " ", end="")
+                    show_word(connector, cursor, word_id)
+                    break
+                elif choice == 'exit':
+                    break
+                else:
+                    print("\nPlease choose from any option pressing 1,2 or 3")
+                    continue
+
+        print("\nPress enter to continue practicing..")
+        print("Type 'exit' or 'e' to exit practicing")
+        more = input()
+        if more.lower() == "exit" or more.lower() == 'e':
+            os.system('cls')
+            break
+        else:
+            os.system('cls')
+            continue
 
 
 def check_duplicate():
@@ -140,6 +250,9 @@ if __name__ == '__main__':
     conn = sqlite3.connect("wordbook.db")
     c = conn.cursor()
 
+    total_words = word_count(conn, c)
+    print("\nThere are {} words in your vocabulary!\n".format(total_words))
+
     while True:
         option = input("##Press 1, to Add new word\n"
                        "##Press 2, for Practice\n"
@@ -151,7 +264,7 @@ if __name__ == '__main__':
             add_new_word(conn, c)
             os.system('cls')
         elif option == "2":
-            practise()
+            practise(conn, c)
             os.system('cls')
         elif option == "3":
             delete_word(conn, c)
